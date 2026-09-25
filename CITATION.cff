@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Blend Zones: Blend-Zone Tool Template and Bay Log reference implementation"
+version: "1.0.0"
+date-released: "2026-09-25"
+type: software
+repository-code: "https://github.com/mrmeaswell/blend-zones"
+authors:
+  - given-names: "Lourenco"
+    family-names: "Tarvin"
+    alias: "Ren Tarvin"
+    affiliation: "Blended Knowledge LLC"
+    email: "rtarvin@blended-knowledge.com"

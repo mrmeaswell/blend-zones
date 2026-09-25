@@ -1,0 +1,17 @@
+{
+  "_comment": "Fill in client_id and deployment_ids after registering the Developer Key in Canvas (see README). issuer is typically https://canvas.instructure.com for Instructure-hosted Canvas — confirm the exact value from Canvas's LTI 1.3 registration details, since some institutions use their own subdomain as the issuer.",
+  "https://canvas.instructure.com": [
+    {
+      "default": true,
+      "client_id": "REPLACE_WITH_CLIENT_ID_FROM_CANVAS",
+      "auth_login_url": "https://canvas.instructure.com/api/lti/authorize_redirect",
+      "auth_token_url": "https://canvas.instructure.com/login/oauth2/token",
+      "auth_audience": null,
+      "key_set_url": "https://canvas.instructure.com/api/lti/security/jwks",
+      "key_set": null,
+      "private_key_file": "keys/private.pem",
+      "public_key_file": "keys/public.pem",
+      "deployment_ids": ["REPLACE_WITH_DEPLOYMENT_ID_FROM_CANVAS"]
+    }
+  ]
+}

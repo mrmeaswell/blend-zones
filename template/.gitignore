@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/
+node_modules/
+
+# Every fork's own SQLite file(s) — the template's db/init-db.sh defaults to
+# tool.db, and the measurement/ module's log accumulates real usage data.
+# Never commit either.
+*.db
+data/

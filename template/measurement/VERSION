@@ -1,0 +1,17 @@
+2026-09-11.2
+
+Canonical source: blend-zone-template/measurement/
+When you fork this folder into a tool (Emile, Bay Log, etc.), copy this
+VERSION file along with it unchanged. If you later pull in an update from
+the canonical template, bump the tool's copy to match this file's value
+so it's always obvious which vendored copies are current and which have
+drifted.
+
+Changelog:
+- 2026-09-11.2 — bugfix: get_summary()'s avg_latency_ms used truthiness
+  (`if totals["avg_latency"] else None`) instead of an explicit None check,
+  so a real 0ms average was reported identically to "no events yet." Found
+  via live smoke testing against a real tool call, not the mock harness.
+- 2026-09-11.1 — initial generalized version, pulled out of the Emile
+  Deployment Measurement Framework (logger.py, dashboard_blueprint.py,
+  schema.sql, template markdown doc).

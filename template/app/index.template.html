@@ -1,0 +1,201 @@
+<!--
+  Generic blend-zone tool shell — POS-terminal style, mobile-first,
+  ready to fork. Single file, no build step. Uses window.storage
+  (Claude artifact persistence) — swap for real API calls once hosted.
+
+  To customize:
+  1. Update STAGES to match your workflow (from the project brief).
+  2. Each stage currently shows one generic "notes" field — add
+     domain-specific fields per stage as needed (see the `if
+     (stage.key === ...)` pattern in Bay Log's own build for examples).
+  3. Update REQUIRED_TO_ADVANCE to match what each stage needs before
+     the ticket can move forward.
+  4. Rename "New item" / "Subject" labels to fit your domain.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+
+<style>
+  #bz-root * { box-sizing: border-box; font-family: 'IBM Plex Sans', sans-serif; }
+  #bz-root { max-width: 384px; margin: 0 auto; }
+  .bz-bezel { background: #171717; border-radius: 1.75rem; padding: 10px; box-shadow: 0 20px 40px rgba(0,0,0,.25); }
+  .bz-screen { background: #fafaf9; border-radius: 1.25rem; overflow: hidden; display: flex; flex-direction: column; min-height: 620px; }
+  .bz-header { background: #171717; color: #fafaf9; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .bz-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; line-height: 1; }
+  .bz-subtitle { font-size: 10px; color: #a8a29e; text-transform: uppercase; letter-spacing: .05em; margin-top: 3px; }
+  .bz-badge { background: #f59e0b; color: #171717; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
+  .bz-content { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .bz-error { background: #fff1f2; border: 1px solid #fecdd3; color: #be123c; font-size: 12px; border-radius: 10px; padding: 8px 12px; }
+  .bz-btn { border: none; cursor: pointer; font-size: 14px; font-weight: 500; border-radius: 10px; padding: 12px; }
+  .bz-btn-dark { background: #171717; color: #fff; width: 100%; }
+  .bz-btn-outline { background: #fff; border: 1px solid #d6d3d1; color: #57534e; padding: 8px 12px; font-size: 13px; }
+  .bz-card { background: #fff; border-radius: 12px; border: 1px solid #e7e5e4; overflow: hidden; }
+  .bz-card-form { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  input.bz-input, textarea.bz-input { width: 100%; border: 1px solid #d6d3d1; border-radius: 8px; padding: 8px 10px; font-size: 14px; font-family: inherit; }
+  .bz-label { font-size: 12px; color: #78716c; margin-bottom: 2px; }
+  .bz-item-head { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px; background: none; border: none; cursor: pointer; text-align: left; }
+  .bz-item-id { font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 500; color: #1c1917; }
+  .bz-item-sub { font-size: 12px; color: #78716c; margin-top: 2px; }
+  .bz-pill { font-size: 11px; padding: 3px 9px; border-radius: 999px; }
+  .bz-item-body { padding: 0 12px 12px; border-top: 1px solid #f5f5f4; display: flex; flex-direction: column; gap: 10px; }
+  .bz-actions { display: flex; gap: 8px; }
+  .bz-actions .bz-btn { flex: 1; color: #fff; }
+  .bz-empty { font-size: 14px; color: #a8a29e; text-align: center; padding: 32px 0; }
+  .bz-nav { display: grid; border-top: 1px solid #e7e5e4; background: #fff; flex-shrink: 0; }
+  .bz-nav button { display: flex; flex-direction: column; align-items: center; padding: 8px 2px; font-size: 10px; background: none; border: none; cursor: pointer; }
+</style>
+
+<div id="bz-root"></div>
+
+<script>
+(function () {
+  // ---- CUSTOMIZE THIS SECTION ----
+  const TOOL_NAME = "TOOL NAME";
+  const DEPARTMENT = "Department";
+  const NEW_ITEM_LABEL = "New item";
+
+  const STAGES = [
+    { key: "intake", label: "Intake", short: "IN", pill: "#334155", bg: "#f1f5f9", text: "#334155" },
+    { key: "in_progress", label: "In Progress", short: "IP", pill: "#0369a1", bg: "#e0f2fe", text: "#0369a1" },
+    { key: "review", label: "Review", short: "RV", pill: "#0f766e", bg: "#ccfbf1", text: "#0f766e" },
+    { key: "done", label: "Done", short: "DN", pill: "#047857", bg: "#d1fae5", text: "#047857" },
+  ];
+
+  // What must be filled in before an item can advance out of this stage
+  // (checked against the per-stage `notes` field by default).
+  const REQUIRED_TO_ADVANCE = {
+    intake: true,
+    in_progress: true,
+    review: false,
+  };
+  // ---- END CUSTOMIZE SECTION ----
+
+  const stageOrder = STAGES.map((s) => s.key);
+  let nextNum = 1001;
+  const state = { items: [], activeStage: stageOrder[0], expanded: null, creating: false, draft: null, error: "" };
+
+  function blankNotes() { const o = {}; stageOrder.forEach((k) => (o[k] = "")); return o; }
+  function newItem() {
+    return { id: "T-" + nextNum++, label: "", assignedTo: "", stage: stageOrder[0], notes: blankNotes(), done: false };
+  }
+  state.draft = newItem();
+
+  async function load() {
+    try {
+      const res = await window.storage.get("bz_items", true);
+      if (res && res.value) state.items = JSON.parse(res.value);
+    } catch (e) {}
+    render();
+  }
+  async function persist() {
+    try { await window.storage.set("bz_items", JSON.stringify(state.items), true); }
+    catch (e) { state.error = "Could not save."; }
+    render();
+  }
+
+  function findItem(id) { return state.items.find((i) => i.id === id); }
+
+  window.bzSetStage = (k) => { state.activeStage = k; state.expanded = null; state.error = ""; render(); };
+  window.bzToggle = (id) => { state.expanded = state.expanded === id ? null : id; render(); };
+  window.bzStartCreate = () => { state.creating = true; render(); };
+  window.bzCancelCreate = () => { state.creating = false; render(); };
+  window.bzDraftField = (f, v) => { state.draft[f] = v; };
+  window.bzDraftNote = (v) => { state.draft.notes[stageOrder[0]] = v; };
+  window.bzSubmitDraft = () => {
+    if (!state.draft.label.trim()) { state.error = "Give this item a name/label first"; render(); return; }
+    state.error = "";
+    state.items.push(state.draft);
+    state.draft = newItem();
+    state.creating = false;
+    persist();
+  };
+  window.bzField = (id, field, v) => { const i = findItem(id); if (i) { i[field] = v; persist(); } };
+  window.bzNote = (id, stage, v) => { const i = findItem(id); if (i) { i.notes[stage] = v; } };
+  window.bzNoteBlur = (id) => { persist(); };
+  window.bzAdvance = (id) => {
+    const i = findItem(id); if (!i) return;
+    if (REQUIRED_TO_ADVANCE[i.stage] && !i.notes[i.stage].trim()) {
+      state.error = "Add notes for this stage before advancing"; render(); return;
+    }
+    state.error = "";
+    const idx = stageOrder.indexOf(i.stage);
+    if (idx < stageOrder.length - 1) { i.stage = stageOrder[idx + 1]; state.activeStage = i.stage; }
+    persist();
+  };
+  window.bzBack = (id) => {
+    const i = findItem(id); if (!i) return;
+    const idx = stageOrder.indexOf(i.stage);
+    if (idx > 0) i.stage = stageOrder[idx - 1];
+    persist();
+  };
+
+  function esc(s) { return (s || "").replace(/"/g, "&quot;"); }
+
+  function render() {
+    const root = document.getElementById("bz-root");
+    const meta = STAGES.find((s) => s.key === state.activeStage);
+    const activeCount = state.items.filter((i) => !i.done).length;
+    const items = state.items.filter((i) => i.stage === state.activeStage && !i.done);
+
+    let content = "";
+    if (state.error) content += `<div class="bz-error">${state.error}</div>`;
+
+    if (state.activeStage === stageOrder[0]) {
+      if (!state.creating) {
+        content += `<button class="bz-btn bz-btn-dark" onclick="bzStartCreate()">+ ${NEW_ITEM_LABEL}</button>`;
+      } else {
+        content += `<div class="bz-card bz-card-form">
+          <input class="bz-input" placeholder="Label" value="${esc(state.draft.label)}" oninput="bzDraftField('label', this.value)"/>
+          <input class="bz-input" placeholder="Assigned to (optional)" value="${esc(state.draft.assignedTo)}" oninput="bzDraftField('assignedTo', this.value)"/>
+          <textarea class="bz-input" placeholder="Notes" rows="2" oninput="bzDraftNote(this.value)"></textarea>
+          <div style="display:flex;gap:8px;">
+            <button class="bz-btn bz-btn-dark" style="flex:1;" onclick="bzSubmitDraft()">Create</button>
+            <button class="bz-btn bz-btn-outline" onclick="bzCancelCreate()">Cancel</button>
+          </div>
+        </div>`;
+      }
+    }
+
+    if (items.length === 0 && !(state.activeStage === stageOrder[0] && state.creating)) {
+      content += `<div class="bz-empty">No items in ${meta.label.toLowerCase()}</div>`;
+    }
+
+    items.forEach((i) => {
+      const open = state.expanded === i.id;
+      content += `<div class="bz-card">
+        <button class="bz-item-head" onclick="bzToggle('${i.id}')">
+          <div><div class="bz-item-id">${i.id}</div><div class="bz-item-sub">${esc(i.label)}${i.assignedTo ? " · " + esc(i.assignedTo) : ""}</div></div>
+          <span class="bz-pill" style="background:${meta.bg};color:${meta.text};">${meta.label}</span>
+        </button>`;
+      if (open) {
+        content += `<div class="bz-item-body">
+          <textarea class="bz-input" placeholder="Notes for ${meta.label.toLowerCase()}" rows="2" oninput="bzNote('${i.id}','${i.stage}', this.value)" onblur="bzNoteBlur('${i.id}')">${esc(i.notes[i.stage])}</textarea>
+          <div class="bz-actions">
+            ${i.stage !== stageOrder[0] ? `<button class="bz-btn bz-btn-outline" onclick="bzBack('${i.id}')">Back</button>` : ""}
+            ${i.stage !== stageOrder[stageOrder.length - 1] ? `<button class="bz-btn" style="background:${meta.pill};" onclick="bzAdvance('${i.id}')">Advance</button>` : `<button class="bz-btn" style="background:#047857;">Done</button>`}
+          </div>
+        </div>`;
+      }
+      content += `</div>`;
+    });
+
+    let nav = `<div class="bz-nav" style="grid-template-columns:repeat(${STAGES.length},1fr);">`;
+    STAGES.forEach((s) => {
+      const count = state.items.filter((i) => i.stage === s.key && !i.done).length;
+      const active = state.activeStage === s.key;
+      nav += `<button style="color:${active ? "#fff" : "#78716c"};background:${active ? s.pill : "transparent"};" onclick="bzSetStage('${s.key}')">
+        <strong>${s.short}</strong><span>${s.label}</span>${count > 0 ? `<span style="font-size:9px;opacity:.8;">${count}</span>` : ""}
+      </button>`;
+    });
+    nav += `</div>`;
+
+    root.innerHTML = `<div class="bz-bezel"><div class="bz-screen">
+      <div class="bz-header"><div><div class="bz-title">${TOOL_NAME}</div><div class="bz-subtitle">${DEPARTMENT}</div></div><div class="bz-badge">${activeCount} active</div></div>
+      <div class="bz-content">${content}</div>
+      ${nav}
+    </div></div>`;
+  }
+
+  load();
+})();
+</script>

@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e0e0e">
+<title>Bay Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ------------------------------------------------------------------
+     Bay Log — bay-terminal skin.
+
+     Tablet-first: an iPad mounted at the bay is the primary target, so
+     every control clears a 48px touch box and the workflow is a
+     swipeable column board rather than a scrolling list. Scales up to a
+     shop office monitor (docked detail panel) and down to a phone
+     (stacked stage sections, full-screen detail sheet).
+
+     Palette and geometry follow Rivian's published design language --
+     the #151515/#212121 ink ladder, a single #ffac00 accent, the
+     sage/ember/sky/tan "adventure" accents used only as semantics, and
+     the 4/12/20 radius steps.
+     ------------------------------------------------------------------ */
+  :root {
+    /* Ink ladder */
+    --ink-0: #0e0e0e;   /* page */
+    --ink-1: #151515;   /* chrome: rail, top bar */
+    --ink-2: #1c1c1c;   /* card surface */
+    --ink-3: #232323;   /* raised surface, inputs */
+    --ink-4: #2e2e2e;   /* hairline */
+    --ink-5: #494949;   /* strong border */
+
+    /* Text */
+    --txt-0: #ffffff;
+    --txt-1: #cbcbcb;
+    --txt-2: #808080;
+    --txt-3: #616161;
+
+    /* Accent + semantics */
+    --yellow: #ffac00;
+    --sage:  #629b5c;
+    --ember: #e84826;
+    --sky:   #77afd8;
+    --tan:   #bc9c8a;
+    --steel: #9fa1b8;
+
+    --r-nano: 4px;
+    --r-micro: 12px;
+    --r-macro: 20px;
+
+    --rail: 92px;
+    --panel: 400px;
+    --touch: 48px;
+
+    --ease: cubic-bezier(.2,.8,.2,1);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body {
+    background: var(--ink-0);
+    color: var(--txt-0);
+    font-family: 'Archivo', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  ::selection { background: var(--yellow); color: #000; }
+
+  /* Dark scrollbars, thin enough to read as chrome */
+  * { scrollbar-width: thin; scrollbar-color: var(--ink-5) transparent; }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-thumb { background: var(--ink-5); border-radius: 999px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+
+  .mono {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .over {
+    font-size: 10px; font-weight: 600; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--txt-3);
+  }
+
+  /* ---------------- Shell ---------------- */
+  .app {
+    display: grid;
+    grid-template-columns: var(--rail) 1fr;
+    grid-template-rows: auto 1fr;
+    height: 100dvh;
+  }
+
+  .rail {
+    grid-row: 1 / -1;
+    background: var(--ink-1);
+    border-right: 1px solid var(--ink-4);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 14px 8px;
+    gap: 6px;
+    overflow-y: auto; overscroll-behavior: contain;
+  }
+  .mark {
+    width: 44px; height: 44px; border-radius: var(--r-micro);
+    background: var(--ink-3); border: 1px solid var(--ink-4);
+    display: grid; place-items: center; color: var(--txt-0);
+    margin-bottom: 12px; flex-shrink: 0;
+  }
+  .rail-btn {
+    width: 100%; min-height: 62px; border: none; background: none;
+    border-radius: var(--r-micro); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 5px;
+    color: var(--txt-3); font-size: 10.5px; font-weight: 500;
+    letter-spacing: .02em; padding: 6px 2px;
+    transition: background .12s var(--ease), color .12s var(--ease);
+  }
+  .rail-btn:hover { color: var(--txt-1); background: var(--ink-2); }
+  .rail-btn[aria-current="page"] { color: var(--txt-0); background: var(--ink-3); }
+  .rail-btn[aria-current="page"] svg { color: var(--yellow); }
+  .rail-btn svg { width: 22px; height: 22px; }
+
+  .top {
+    grid-column: 2;
+    background: var(--ink-1);
+    border-bottom: 1px solid var(--ink-4);
+    display: flex; align-items: center; gap: 20px;
+    padding: 12px 20px; min-height: 68px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .brand .mark-sm { display: none; }
+  .wordmark {
+    font-size: 19px; font-weight: 700; letter-spacing: -.025em;
+    line-height: 1.05; white-space: nowrap;
+  }
+  .dept { margin-top: 3px; }
+
+  .kpis { display: flex; gap: 26px; margin-left: auto; flex-shrink: 0; }
+  .kpi { text-align: right; }
+  .kpi-val {
+    font-size: 21px; font-weight: 600; line-height: 1.1;
+    letter-spacing: -.02em;
+  }
+  .kpi--alert .kpi-val { color: var(--yellow); }
+  .kpi-lab { margin-top: 1px; }
+
+  .who {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
+    flex-shrink: 0; padding-left: 20px; border-left: 1px solid var(--ink-4);
+  }
+  .badge {
+    background: var(--yellow); color: #000;
+    font-size: 11px; font-weight: 600; letter-spacing: .02em;
+    padding: 4px 10px; border-radius: var(--r-nano); white-space: nowrap;
+  }
+  .badge--anon { background: var(--ink-3); color: var(--txt-1); border: 1px solid var(--ink-5); }
+  select.role-sel {
+    background: var(--ink-3); border: 1px solid var(--ink-5); color: var(--txt-1);
+    border-radius: var(--r-nano); font-size: 11px; padding: 4px 6px;
+  }
+
+  .main { grid-column: 2; min-height: 0; overflow: hidden; position: relative; }
+
+  /* ---------------- Board ---------------- */
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 20px 0; flex-wrap: wrap;
+  }
+  .seg { display: flex; background: var(--ink-2); border: 1px solid var(--ink-4);
+         border-radius: var(--r-nano); overflow: hidden; }
+  .seg button {
+    border: none; background: none; cursor: pointer;
+    padding: 9px 16px; min-height: 40px; font-size: 13px; font-weight: 500;
+    color: var(--txt-2); transition: background .12s var(--ease), color .12s var(--ease);
+  }
+  .seg button[aria-pressed="true"] { background: var(--ink-3); color: var(--txt-0); }
+  .count-note { margin-left: auto; font-size: 12px; color: var(--txt-3); }
+
+  /* The board owns the leftover height so every column runs floor to
+     ceiling -- short columns reading as stubs is the tell of a mock-up. */
+  .board-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  .board {
+    display: flex; gap: 12px; align-items: stretch;
+    padding: 12px 20px 20px;
+    flex: 1; min-height: 0;
+    overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+  }
+
+  .col {
+    flex: 0 0 clamp(268px, 31vw, 330px);
+    scroll-snap-align: start;
+    display: flex; flex-direction: column; min-height: 0;
+    background: var(--ink-1); border: 1px solid var(--ink-4);
+    border-radius: var(--r-micro); overflow: hidden;
+  }
+  .col-accent { height: 3px; flex-shrink: 0; }
+  .col-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 11px 12px; border-bottom: 1px solid var(--ink-4); flex-shrink: 0;
+  }
+  .col-name { font-size: 13px; font-weight: 600; letter-spacing: -.01em; }
+  .col-code {
+    font-size: 10px; font-weight: 600; letter-spacing: .1em;
+    padding: 2px 6px; border-radius: var(--r-nano);
+    border: 1px solid currentColor; opacity: .75;
+  }
+  .col-n {
+    margin-left: auto; font-size: 12px; font-weight: 600; color: var(--txt-2);
+    background: var(--ink-3); border-radius: var(--r-nano); padding: 1px 7px;
+  }
+  .col-body {
+    flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    padding: 10px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .col-empty { font-size: 12px; color: var(--txt-3); padding: 14px 4px; text-align: center; }
+
+  /* ---------------- RO card ---------------- */
+  .ro {
+    position: relative; width: 100%; text-align: left;
+    background: var(--ink-2); border: 1px solid var(--ink-4);
+    border-left: 3px solid var(--ink-5);
+    border-radius: var(--r-nano); cursor: pointer;
+    padding: 11px 12px 10px; min-height: var(--touch);
+    display: flex; flex-direction: column; gap: 6px;
+    transition: border-color .12s var(--ease), background .12s var(--ease),
+                transform .12s var(--ease);
+  }
+  .ro:hover { background: var(--ink-3); }
+  .ro:active { transform: scale(.99); }
+  .ro[aria-current="true"] { background: var(--ink-3); border-color: var(--txt-2); }
+  .ro-top { display: flex; align-items: center; gap: 8px; }
+  .ro-id { font-size: 14px; font-weight: 600; letter-spacing: .01em; }
+  .ro-flags { margin-left: auto; display: flex; gap: 5px; align-items: center; }
+  .flag {
+    font-size: 9.5px; font-weight: 600; letter-spacing: .09em;
+    padding: 2px 6px; border-radius: var(--r-nano);
+  }
+  .flag--rush { background: var(--ember); color: #fff; }
+  .flag--block { background: rgba(255,172,0,.15); color: var(--yellow);
+                 border: 1px solid rgba(255,172,0,.4); }
+  .ro-veh {
+    font-size: 14px; font-weight: 500; color: var(--txt-0);
+    letter-spacing: -.01em; line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .ro-meta {
+    font-size: 11.5px; color: var(--txt-2); overflow-wrap: anywhere;
+  }
+  .ro-issue {
+    font-size: 12px; color: var(--txt-1); line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .ro-foot {
+    display: flex; align-items: center; gap: 8px;
+    border-top: 1px solid var(--ink-4); padding-top: 8px; margin-top: 1px;
+  }
+  .tech { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .av {
+    width: 22px; height: 22px; border-radius: 999px; flex-shrink: 0;
+    background: var(--ink-4); color: var(--txt-1);
+    font-size: 9.5px; font-weight: 600; letter-spacing: .02em;
+    display: grid; place-items: center;
+  }
+  .tech-name {
+    font-size: 11.5px; color: var(--txt-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tech-name--none { color: var(--txt-3); font-style: italic; }
+  .ro-age { margin-left: auto; font-size: 10.5px; color: var(--txt-3); flex-shrink: 0; }
+
+  /* ---------------- Detail ---------------- */
+  .detail {
+    position: absolute; inset: 0 0 0 auto; width: min(var(--panel), 100%);
+    background: var(--ink-1); border-left: 1px solid var(--ink-4);
+    display: none; flex-direction: column; min-height: 0;
+    box-shadow: -24px 0 48px rgba(0,0,0,.45);
+  }
+  .detail.open { display: flex; animation: slidein .18s var(--ease); }
+  @keyframes slidein { from { transform: translateX(16px); opacity: .6 } to { transform: none; opacity: 1 } }
+  @media (prefers-reduced-motion: reduce) {
+    .detail.open { animation: none; }
+    * { transition-duration: .01ms !important; }
+  }
+  .d-head {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 14px 16px; border-bottom: 1px solid var(--ink-4); flex-shrink: 0;
+  }
+  .d-id { font-size: 20px; font-weight: 600; letter-spacing: 0; line-height: 1.1; }
+  .d-stage { margin-top: 5px; display: flex; align-items: center; gap: 7px; }
+  .d-dot { width: 7px; height: 7px; border-radius: 999px; flex-shrink: 0; }
+  .d-stage-name { font-size: 12px; font-weight: 500; color: var(--txt-1); }
+  .x-btn {
+    margin-left: auto; flex-shrink: 0;
+    width: var(--touch); height: var(--touch); border-radius: var(--r-nano);
+    background: var(--ink-3); border: 1px solid var(--ink-4);
+    color: var(--txt-1); cursor: pointer; display: grid; place-items: center;
+    transition: background .12s var(--ease);
+  }
+  .x-btn:hover { background: var(--ink-4); color: var(--txt-0); }
+  .d-body {
+    flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .d-foot {
+    flex-shrink: 0; padding: 12px 16px; border-top: 1px solid var(--ink-4);
+    background: var(--ink-1); display: flex; gap: 8px;
+  }
+  .d-foot > .btn { flex: 1; }
+
+  .veh-title { font-size: 16px; font-weight: 600; letter-spacing: -.015em; overflow-wrap: anywhere; }
+  .spec {
+    /* Two fixed columns tile without leaving a hole when a long value
+       claims a whole row; auto-fit left dark gaps. */
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px; background: var(--ink-4);
+    border: 1px solid var(--ink-4); border-radius: var(--r-nano);
+    overflow: hidden; margin-top: 10px;
+  }
+  .spec-cell { background: var(--ink-2); padding: 8px 10px; min-width: 0; }
+  /* A 17-character VIN in a third of a panel wraps mid-string; long
+     values take the whole row instead. */
+  .spec-cell--long { grid-column: 1 / -1; }
+  .spec-val {
+    font-size: 12.5px; font-weight: 500; margin-top: 3px;
+    color: var(--txt-0); overflow-wrap: anywhere;
+  }
+
+  .sec { display: flex; flex-direction: column; gap: 9px; }
+  .sec-head { display: flex; align-items: center; gap: 8px; }
+  .sec-rule { flex: 1; height: 1px; background: var(--ink-4); }
+
+  .note {
+    font-size: 12.5px; line-height: 1.45; border-radius: var(--r-nano);
+    padding: 9px 11px; overflow-wrap: anywhere;
+  }
+  .note--err { background: rgba(232,72,38,.12); border: 1px solid rgba(232,72,38,.45); color: #ff9b84; }
+  .note--warn { background: rgba(255,172,0,.1); border: 1px solid rgba(255,172,0,.35); color: var(--yellow); }
+  .note--ok { background: rgba(98,155,92,.12); border: 1px solid rgba(98,155,92,.4); color: #8fc98a; }
+  .note--info { background: var(--ink-2); border: 1px solid var(--ink-4); color: var(--txt-1); }
+  .note ul { margin: 5px 0 0; padding-left: 17px; }
+  .note li { margin-top: 2px; }
+
+  /* ---------------- Forms ---------------- */
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  label.lab { font-size: 11.5px; font-weight: 500; color: var(--txt-2); }
+  .req { color: var(--yellow); }
+  input.in, textarea.in, select.in {
+    width: 100%; min-height: 44px;
+    background: var(--ink-3); border: 1px solid var(--ink-5);
+    border-radius: var(--r-nano); padding: 10px 12px;
+    font-size: 16px; /* >=16px stops iOS zooming on focus */
+    transition: border-color .12s var(--ease), background .12s var(--ease);
+  }
+  input.in::placeholder, textarea.in::placeholder { color: var(--txt-3); }
+  input.in::placeholder { text-overflow: ellipsis; }
+  input.in:focus, textarea.in:focus, select.in:focus {
+    outline: none; border-color: var(--yellow); background: var(--ink-2);
+  }
+  textarea.in { min-height: 78px; resize: vertical; line-height: 1.45; }
+  input[type="file"].in { padding: 9px 10px; font-size: 13px; color: var(--txt-2); }
+  /* The unstyled native button is a bright grey slab in a dark bay. */
+  input[type="file"].in::file-selector-button {
+    background: var(--ink-4); color: var(--txt-1);
+    border: 1px solid var(--ink-5); border-radius: var(--r-nano);
+    padding: 7px 12px; margin-right: 11px; cursor: pointer;
+    font: inherit; font-weight: 600;
+  }
+  input[type="file"].in::file-selector-button:hover { background: var(--ink-5); color: var(--txt-0); }
+  .check {
+    display: flex; align-items: center; gap: 11px; min-height: var(--touch);
+    background: var(--ink-3); border: 1px solid var(--ink-5);
+    border-radius: var(--r-nano); padding: 0 12px; cursor: pointer;
+    font-size: 14px;
+  }
+  .check input { width: 22px; height: 22px; accent-color: var(--yellow); flex-shrink: 0; }
+
+  .btn {
+    border: 1px solid transparent; border-radius: var(--r-nano);
+    min-height: var(--touch); padding: 12px 16px; cursor: pointer;
+    font-size: 14px; font-weight: 600; letter-spacing: -.005em;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    transition: background .12s var(--ease), border-color .12s var(--ease),
+                opacity .12s var(--ease);
+  }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn--primary { background: var(--yellow); color: #000; }
+  .btn--primary:not(:disabled):hover { background: #ffbe33; }
+  .btn--ghost { background: var(--ink-3); border-color: var(--ink-5); color: var(--txt-1); }
+  .btn--ghost:not(:disabled):hover { background: var(--ink-4); color: var(--txt-0); }
+  .btn--sign { background: var(--sage); color: #fff; }
+  .btn--sign:not(:disabled):hover { background: #6faa69; }
+  .btn--wide { width: 100%; }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row > .btn { flex: 1; }
+
+  /* ---------------- Records / history ---------------- */
+  .kv { font-size: 12.5px; color: var(--txt-1); overflow-wrap: anywhere; }
+  .kv b { color: var(--txt-0); font-weight: 600; }
+  .line {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11.5px; line-height: 1.5; color: var(--txt-1);
+    background: var(--ink-2); border: 1px solid var(--ink-4);
+    border-radius: var(--r-nano); padding: 9px 11px; overflow-wrap: anywhere;
+  }
+  .trail { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 11px; }
+  .step-gut { display: flex; flex-direction: column; align-items: center; width: 9px; flex-shrink: 0; }
+  .step-dot { width: 9px; height: 9px; border-radius: 999px; background: var(--ink-5); margin-top: 5px; flex-shrink: 0; }
+  .step-dot--now { background: var(--yellow); box-shadow: 0 0 0 3px rgba(255,172,0,.16); }
+  .step-line { flex: 1; width: 1px; background: var(--ink-4); min-height: 10px; }
+  .step-body { padding-bottom: 13px; min-width: 0; flex: 1; }
+  .step-name { font-size: 12.5px; font-weight: 600; color: var(--txt-0); }
+  .step-when { font-size: 11px; color: var(--txt-3); margin-top: 2px; }
+  .step-data { font-size: 11.5px; color: var(--txt-2); margin-top: 4px; overflow-wrap: anywhere; }
+  a.link { color: var(--yellow); text-decoration: none; border-bottom: 1px solid rgba(255,172,0,.35); }
+  a.link:hover { border-bottom-color: var(--yellow); }
+  .files { display: flex; flex-direction: column; gap: 6px; }
+
+  /* ---------------- Scroll views (new / status / kb) ---------------- */
+  .scroll {
+    height: 100%; overflow-y: auto; overscroll-behavior: contain;
+    padding: 20px; display: flex; flex-direction: column; gap: 16px;
+  }
+  .sheet {
+    background: var(--ink-1); border: 1px solid var(--ink-4);
+    border-radius: var(--r-micro); padding: 18px;
+    display: flex; flex-direction: column; gap: 14px;
+    max-width: 760px; width: 100%;
+  }
+  /* Forms keep a readable measure; record lists follow the KPI cards out
+     to the full width so the right edges line up. */
+  .sheet--wide { max-width: none; }
+  .h1 { font-size: 22px; font-weight: 600; letter-spacing: -.025em; line-height: 1.15; }
+  .h2 { font-size: 15px; font-weight: 600; letter-spacing: -.015em; }
+  .sub { font-size: 13px; color: var(--txt-2); margin-top: 4px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 10px; }
+  .stat {
+    background: var(--ink-1); border: 1px solid var(--ink-4);
+    border-radius: var(--r-micro); padding: 13px 15px;
+    border-top: 3px solid var(--ink-5);
+  }
+  .stat-val { font-size: 27px; font-weight: 600; letter-spacing: -.03em; line-height: 1.05; margin-top: 5px; }
+  .kb-card {
+    background: var(--ink-1); border: 1px solid var(--ink-4);
+    border-radius: var(--r-micro); padding: 15px;
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .kb-cat {
+    align-self: flex-start; font-size: 10px; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--yellow);
+    border: 1px solid rgba(255,172,0,.35); border-radius: var(--r-nano); padding: 2px 7px;
+  }
+  .empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; padding: 56px 20px; text-align: center; color: var(--txt-3);
+  }
+  .empty-h { font-size: 15px; font-weight: 500; color: var(--txt-1); }
+  .empty-p { font-size: 13px; max-width: 300px; }
+
+  /* Skeletons mirror the real card layout so nothing jumps on load */
+  .sk { background: var(--ink-3); border-radius: var(--r-nano); animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: .45 } 50% { opacity: .8 } }
+
+  .tabs { display: none; }
+
+  /* ---------------- Narrow: phone / portrait ---------------- */
+  @media (max-width: 1000px) {
+    .detail { width: 100%; border-left: none; }
+  }
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+    .rail { display: none; }
+    .top { grid-column: 1; padding: 10px 14px; gap: 12px; min-height: 60px; }
+    .brand .mark-sm { display: grid; }
+    .main { grid-column: 1; }
+    .kpis { gap: 16px; }
+    .kpi-val { font-size: 18px; }
+    .who { padding-left: 12px; }
+
+    .tabs {
+      display: grid; grid-column: 1;
+      grid-template-columns: repeat(4, 1fr);
+      background: var(--ink-1); border-top: 1px solid var(--ink-4);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .tab-btn {
+      min-height: 58px; border: none; background: none; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 4px; color: var(--txt-3); font-size: 10.5px; font-weight: 500;
+      border-top: 2px solid transparent; margin-top: -1px;
+    }
+    .tab-btn svg { width: 21px; height: 21px; }
+    .tab-btn[aria-current="page"] { color: var(--txt-0); border-top-color: var(--yellow); }
+    .tab-btn[aria-current="page"] svg { color: var(--yellow); }
+  }
+  @media (max-width: 700px) {
+    /* Columns stop paying their way -- stack the stages vertically. */
+    .board {
+      flex-direction: column; align-items: stretch;
+      overflow-x: hidden; overflow-y: auto;
+      scroll-snap-type: none; padding: 12px 14px 20px;
+    }
+    .col { flex: 0 0 auto; }
+    .col-body { overflow: visible; max-height: none; }
+    .toolbar { padding: 12px 14px 0; }
+    .scroll { padding: 14px; }
+    .sheet { padding: 15px; }
+  }
+  @media (max-width: 560px) {
+    .kpis { display: none; }
+    .wordmark { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="rail" id="rail" aria-label="Sections"></nav>
+
+  <header class="top">
+    <div class="brand">
+      <div class="mark mark-sm" style="width:38px;height:38px;margin:0" aria-hidden="true"></div>
+      <div>
+        <div class="wordmark" id="tool-name">Bay Log</div>
+        <div class="over dept" id="dept">loading</div>
+      </div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="who">
+      <span class="badge badge--anon" id="badge">…</span>
+      <select class="role-sel" id="role-sel" hidden
+              title="Unauthenticated mode: acting role" aria-label="Acting role"></select>
+    </div>
+  </header>
+
+  <main class="main" id="main">
+    <div class="empty"><div class="empty-h">Connecting to the shop</div></div>
+  </main>
+
+  <nav class="tabs" id="tabs" aria-label="Sections"></nav>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // Prefix put in front of every API path. Empty by default, meaning the
+  // API is served from the same origin as this page -- the normal
+  // deployment. Set window.BZ_API_BASE before this script to point the UI
+  // somewhere else; it accepts either a full origin
+  // ("https://baylog.example.edu") or a same-origin path prefix
+  // ("/port/8080", as preview hosting uses). A cross-origin value also
+  // needs that origin listed in the API's BZ_CORS_ORIGINS.
+  const API_ORIGIN = String(window.BZ_API_BASE || "").replace(/\/+$/, "");
+
+  // Session storage throws (not just returns null) inside partitioned or
+  // sandboxed third-party iframes — which is exactly how Canvas embeds this
+  // tool. It only remembers the dev role selector, so degrade to an
+  // in-memory value instead of letting an exception kill the whole UI.
+  const memStore = Object.create(null);
+  const store = {
+    get(k) {
+      try {
+        const v = window.sessionStorage.getItem(k);
+        if (v !== null) return v;
+      } catch (e) { /* storage unavailable */ }
+      return k in memStore ? memStore[k] : null;
+    },
+    set(k, v) {
+      memStore[k] = v;
+      try { window.sessionStorage.setItem(k, v); } catch (e) { /* memory only */ }
+    }
+  };
+
+  // ------------------------------------------------------------------
+  // State
+  // ------------------------------------------------------------------
+  const S = {
+    cfg: null, me: null, tickets: [], kb: [], people: [],
+    view: "board", filter: "open", openId: null, error: null, notice: null,
+    devRole: null,  // set immediately below, once `store` exists
+    detail: null, busy: false, showTrail: false, summary: null
+  };
+  S.devRole = store.get("bz-dev-role");
+
+  const el = (t, a, kids) => {
+    const n = document.createElement(t);
+    for (const k in (a || {})) {
+      const v = a[k];
+      if (v === null || v === undefined || v === false) continue;
+      if (k === "class") n.className = v;
+      else if (k === "text") n.textContent = v;
+      else if (k.startsWith("on") && typeof v === "function") n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v === true ? "" : v);
+    }
+    (Array.isArray(kids) ? kids : kids ? [kids] : []).forEach(c => {
+      if (c) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+    });
+    return n;
+  };
+
+  const svg = (paths, size) => {
+    const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("viewBox", "0 0 24 24");
+    s.setAttribute("fill", "none");
+    s.setAttribute("stroke", "currentColor");
+    s.setAttribute("stroke-width", "1.7");
+    s.setAttribute("stroke-linecap", "round");
+    s.setAttribute("stroke-linejoin", "round");
+    s.setAttribute("aria-hidden", "true");
+    if (size) { s.setAttribute("width", size); s.setAttribute("height", size); }
+    paths.forEach(d => {
+      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      p.setAttribute("d", d);
+      s.appendChild(p);
+    });
+    return s;
+  };
+
+  const ICON = {
+    // Two-post lift: platform over a centre post, standing on the shop floor.
+    logo:  ["M4 8h16v4H4z", "M12 12v8", "M3 20h18"],
+    board: ["M4 5h5v14H4z", "M15 5h5v9h-5z"],
+    plus:  ["M12 5v14", "M5 12h14"],
+    gauge: ["M4 20h16", "M7 20v-6", "M12 20V8", "M17 20v-9"],
+    book:  ["M5 4h9a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z", "M17 7h2v13H8"]
+  };
+
+  // Rivian keeps one chromatic accent and a small "adventure" set used
+  // strictly as semantics. Stages are coloured by position in the
+  // workflow rather than by key, so a forked workflow.json still gets a
+  // coherent ramp without touching this file.
+  const RAMP = ["--steel", "--sky", "--yellow", "--ember", "--tan", "--sage", "--txt-3"];
+  const stageColor = key => {
+    const i = S.cfg ? S.cfg.stages.findIndex(s => s.key === key) : -1;
+    return "var(" + RAMP[(i < 0 ? 0 : i) % RAMP.length] + ")";
+  };
+  const stageOf = key => (S.cfg ? S.cfg.stages.find(s => s.key === key) : null) || {};
+
+  const initials = name => String(name || "")
+    .trim().split(/\s+/).slice(0, 2).map(w => w[0] || "").join("").toUpperCase() || "?";
+
+  const num = v => (typeof v === "number" ? v.toLocaleString("en-US") : v);
+
+  // "3d" / "5h" / "just now" — shop staff care about dwell, not timestamps.
+  function ago(iso) {
+    if (!iso) return "";
+    const t = Date.parse(String(iso).replace(" ", "T") + (/[Zz+]/.test(iso) ? "" : "Z"));
+    if (isNaN(t)) return "";
+    const mins = Math.floor((Date.now() - t) / 60000);
+    if (mins < 1) return "now";
+    if (mins < 60) return mins + "m";
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + "h";
+    return Math.floor(hrs / 24) + "d";
+  }
+
+  // ------------------------------------------------------------------
+  // API
+  // ------------------------------------------------------------------
+  async function api(path, opts) {
+    opts = opts || {};
+    // Concatenate rather than using URL's base semantics: an absolute path
+    // resolved against a base would discard a path prefix like /port/8080.
+    const url = new URL(API_ORIGIN + path, window.location.href);
+    if (S.devRole && !(S.me && S.me.authenticated)) url.searchParams.set("as", S.devRole);
+    const headers = Object.assign({}, opts.headers);
+    if (opts.json !== undefined) {
+      headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(opts.json);
+    }
+    if (S.devRole) headers["x-bz-role"] = S.devRole;
+
+    const res = await fetch(url, { method: opts.method || "GET", headers, body: opts.body });
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (e) { data = { detail: text }; }
+
+    if (!res.ok) {
+      const d = data && data.detail;
+      const msg = typeof d === "string" ? d
+        : d && d.message ? d.message + (d.blockers ? ": " + d.blockers.join("; ") : "")
+        : Array.isArray(d) && d.length && d[0].msg ? d[0].msg
+        : "Request failed (" + res.status + ")";
+      const err = new Error(msg);
+      err.payload = d;
+      throw err;
+    }
+    return data;
+  }
+
+  async function refresh(keepNotice) {
+    if (!keepNotice) S.notice = null;
+    const [tickets, me] = await Promise.all([api("/api/tickets"), api("/api/me")]);
+    S.tickets = tickets;
+    S.me = me;
+    if (S.openId) {
+      try { S.detail = await api("/api/tickets/" + encodeURIComponent(S.openId)); }
+      catch (e) { S.detail = null; S.openId = null; }
+    } else {
+      S.detail = null;
+    }
+    render();
+  }
+
+  async function run(fn, successNote) {
+    S.busy = true; S.error = null; render();
+    try {
+      await fn();
+      if (successNote) S.notice = successNote;
+      await refresh(true);
+    } catch (e) {
+      S.error = e.message;
+      try { await refresh(true); } catch (_) { render(); }
+    } finally {
+      S.busy = false;
+      render();
+    }
+  }
+
+  function openRO(id) {
+    if (S.openId === id) { closeRO(); return; }
+    S.openId = id; S.detail = null; S.error = null; S.notice = null;
+    S.showTrail = false; S.summary = null;
+    render();
+    run(async () => {});
+  }
+  function closeRO() {
+    S.openId = null; S.detail = null; S.error = null; S.notice = null;
+    S.summary = null; render();
+  }
+
+  // ------------------------------------------------------------------
+  // Field rendering (driven by config/workflow.json)
+  // ------------------------------------------------------------------
+  const fieldValues = {};   // ticket_id -> { key: value } pending edits
+
+  function pending(ticketId) {
+    if (!fieldValues[ticketId]) fieldValues[ticketId] = {};
+    return fieldValues[ticketId];
+  }
+
+  function fieldInput(field, value, onChange) {
+    const common = { class: "in", id: "f-" + field.key };
+    if (field.type === "textarea") {
+      const n = el("textarea", Object.assign(common, {
+        placeholder: field.placeholder || "", rows: 3,
+        oninput: e => onChange(e.target.value)
+      }));
+      n.value = value == null ? "" : value;
+      return n;
+    }
+    if (field.type === "checkbox") {
+      const box = el("input", {
+        type: "checkbox", id: common.id,
+        onchange: e => onChange(e.target.checked)
+      });
+      box.checked = !!value;
+      return el("label", { class: "check" }, [box, field.label]);
+    }
+    const n = el("input", Object.assign(common, {
+      type: field.type === "number" ? "number" : "text",
+      placeholder: field.placeholder || "",
+      inputmode: field.type === "number" ? "decimal" : null,
+      oninput: e => onChange(
+        field.type === "number"
+          ? (e.target.value === "" ? "" : Number(e.target.value))
+          : e.target.value
+      )
+    }));
+    n.value = value == null ? "" : value;
+    return n;
+  }
+
+  function fieldBlock(field, value, onChange) {
+    if (field.type === "checkbox") {
+      return el("div", { class: "field" }, fieldInput(field, value, onChange));
+    }
+    return el("div", { class: "field" }, [
+      el("label", { class: "lab", for: "f-" + field.key }, [
+        field.label,
+        field.required ? el("span", { class: "req", text: " *" }) : null
+      ]),
+      fieldInput(field, value, onChange)
+    ]);
+  }
+
+  function sectionHead(title) {
+    return el("div", { class: "sec-head" }, [
+      el("div", { class: "over", text: title }),
+      el("div", { class: "sec-rule" })
+    ]);
+  }
+
+  // ------------------------------------------------------------------
+  // RO card
+  // ------------------------------------------------------------------
+  function roCard(t) {
+    const stage = stageOf(t.stage_key);
+    const blocked = (t.blockers || []).length;
+    const flags = [];
+    if (t.priority === "rush") flags.push(el("span", { class: "flag flag--rush", text: "RUSH" }));
+    if (blocked) {
+      flags.push(el("span", {
+        class: "flag flag--block",
+        text: blocked + " TO CLEAR",
+        title: t.blockers.join("; ")
+      }));
+    }
+
+    const attrs = (t.subject_attributes || {});
+    const bits = [];
+    if (attrs.plate) bits.push(String(attrs.plate));
+    if (attrs.mileage) bits.push(num(attrs.mileage) + " mi");
+
+    return el("button", {
+      class: "ro", "aria-current": S.openId === t.ticket_id ? "true" : null,
+      style: "border-left-color:" + stageColor(t.stage_key),
+      onclick: () => openRO(t.ticket_id)
+    }, [
+      el("div", { class: "ro-top" }, [
+        el("span", { class: "ro-id mono", text: t.ticket_id }),
+        el("span", { class: "ro-flags" }, flags)
+      ]),
+      el("div", { class: "ro-veh", text: t.subject_label }),
+      bits.length ? el("div", { class: "ro-meta mono", text: bits.join("  ·  ") }) : null,
+      t.title ? el("div", { class: "ro-issue", text: t.title }) : null,
+      el("div", { class: "ro-foot" }, [
+        el("div", { class: "tech" }, [
+          el("span", { class: "av", text: t.assigned_name ? initials(t.assigned_name) : "—" }),
+          el("span", {
+            class: "tech-name" + (t.assigned_name ? "" : " tech-name--none"),
+            text: t.assigned_name || "Unassigned"
+          })
+        ]),
+        el("span", {
+          class: "ro-age mono",
+          text: ago(t.updated_at || t.created_at),
+          title: "Last activity · " + (stage.label || t.stage_key)
+        })
+      ])
+    ]);
+  }
+
+  // ------------------------------------------------------------------
+  // Views
+  // ------------------------------------------------------------------
+  function renderBoard() {
+    const wrap = el("div", { class: "board-wrap" });
+
+    wrap.appendChild(el("div", { class: "toolbar" }, [
+      el("div", { class: "seg" }, [
+        { k: "open", l: "Active" }, { k: "all", l: "All" }
+      ].map(o => el("button", {
+        "aria-pressed": S.filter === o.k ? "true" : "false", text: o.l,
+        onclick: () => { S.filter = o.k; render(); }
+      }))),
+      el("div", { class: "count-note", id: "count-note" })
+    ]));
+
+    let list = S.tickets;
+    if (S.filter === "open") list = list.filter(t => !t.done);
+
+    const board = el("div", { class: "board" });
+    let shown = 0;
+
+    S.cfg.stages.forEach(st => {
+      const rows = list.filter(t => t.stage_key === st.key);
+      // In Active mode an empty terminal column is just dead width.
+      if (!rows.length && S.filter === "open" && st.key === S.cfg.stages[S.cfg.stages.length - 1].key) return;
+      shown += rows.length;
+      const c = stageColor(st.key);
+      board.appendChild(el("div", { class: "col" }, [
+        el("div", { class: "col-accent", style: "background:" + c }),
+        el("div", { class: "col-head" }, [
+          el("span", { class: "col-name", text: st.label }),
+          el("span", { class: "col-code mono", style: "color:" + c, text: st.short || "" }),
+          el("span", { class: "col-n mono", text: String(rows.length) })
+        ]),
+        el("div", { class: "col-body" },
+          rows.length
+            ? rows.map(roCard)
+            : [el("div", { class: "col-empty", text: "Empty" })])
+      ]));
+    });
+
+    wrap.appendChild(board);
+    const note = wrap.querySelector("#count-note");
+    if (note) {
+      note.textContent = shown + (S.filter === "open" ? " active" : " total") +
+        " · " + S.tickets.filter(t => t.done).length + " closed";
+    }
+    return wrap;
+  }
+
+  function renderDetailPanel() {
+    if (!S.openId) return el("aside", { class: "detail" });
+
+    const d = S.detail;
+    const head = [];
+    const body = [];
+    const foot = [];
+
+    if (!d || d.ticket_id !== S.openId) {
+      head.push(el("div", {}, [
+        el("div", { class: "d-id mono", text: S.openId }),
+        el("div", { class: "d-stage" }, el("span", { class: "d-stage-name", text: "Opening record…" }))
+      ]));
+      body.push(el("div", { class: "sk", style: "height:20px;width:70%" }));
+      body.push(el("div", { class: "sk", style: "height:58px" }));
+      body.push(el("div", { class: "sk", style: "height:44px" }));
+      body.push(el("div", { class: "sk", style: "height:44px" }));
+    } else {
+      const stage = stageOf(d.stage_key);
+      const c = stageColor(d.stage_key);
+      const p = pending(d.ticket_id);
+      const value = k => (k in p ? p[k] : d.stage_data[k]);
+
+      head.push(el("div", {}, [
+        el("div", { class: "d-id mono", text: d.ticket_id }),
+        el("div", { class: "d-stage" }, [
+          el("span", { class: "d-dot", style: "background:" + c }),
+          el("span", { class: "d-stage-name", text: stage.label || d.stage_key }),
+          d.priority === "rush" ? el("span", { class: "flag flag--rush", text: "RUSH" }) : null
+        ])
+      ]));
+
+      // --- Vehicle -----------------------------------------------------
+      const attrs = d.subject.attributes || {};
+      const specCells = (S.cfg.subject_fields || [])
+        .filter(f => f.key !== "label" && attrs[f.key] !== null &&
+                     attrs[f.key] !== undefined && attrs[f.key] !== "")
+        .map(f => el("div", {
+          class: "spec-cell" +
+            (String(attrs[f.key]).length > 12 ? " spec-cell--long" : "")
+        }, [
+          el("div", { class: "over", text: f.label }),
+          el("div", { class: "spec-val mono", text: String(num(attrs[f.key])) })
+        ]));
+      const vehBlock = [el("div", { class: "veh-title", text: d.subject.label })];
+      if (d.title) vehBlock.push(el("div", { class: "sub", text: d.title }));
+      vehBlock.push(el("div", { class: "tech", style: "margin-top:10px" }, [
+        el("span", { class: "av", text: d.assigned_to ? initials(d.assigned_to) : "—" }),
+        el("span", {
+          class: "tech-name" + (d.assigned_to ? "" : " tech-name--none"),
+          style: "font-size:12.5px;white-space:normal;overflow:visible",
+          text: d.assigned_to || "Unassigned"
+        })
+      ]));
+      if (specCells.length) vehBlock.push(el("div", { class: "spec" }, specCells));
+      body.push(el("div", {}, vehBlock));
+
+      // --- Status ------------------------------------------------------
+      if (S.error) body.push(el("div", { class: "note note--err", text: S.error }));
+      if (S.notice) body.push(el("div", { class: "note note--ok", text: S.notice }));
+
+      if (d.blockers && d.blockers.length) {
+        body.push(el("div", { class: "note note--warn" }, [
+          el("b", { text: "Required before advancing" }),
+          el("ul", {}, d.blockers.map(b => el("li", { text: b })))
+        ]));
+      } else if (d.next_stage) {
+        body.push(el("div", { class: "note note--ok",
+          text: "Clear to advance to " + stageOf(d.next_stage).label + "." }));
+      }
+
+      if (stage.description) {
+        body.push(el("div", { class: "note note--info", text: stage.description }));
+      }
+
+      // --- Stage fields ------------------------------------------------
+      if ((stage.fields || []).length) {
+        const fields = [sectionHead(stage.label + " entry")];
+        stage.fields.forEach(f => {
+          fields.push(fieldBlock(f, value(f.key), v => { p[f.key] = v; }));
+        });
+        fields.push(el("button", {
+          class: "btn btn--ghost btn--wide", disabled: S.busy,
+          text: S.busy ? "Saving…" : "Save entry",
+          onclick: () => run(async () => {
+            await api("/api/tickets/" + encodeURIComponent(d.ticket_id) + "/stage-data",
+              { method: "PUT", json: { data: p } });
+            fieldValues[d.ticket_id] = {};
+          }, "Entry saved.")
+        }));
+        body.push(el("div", { class: "sec" }, fields));
+      }
+
+      // --- Sign-off ----------------------------------------------------
+      const needsSignoff = !!(stage.requires && stage.requires.signoff);
+      const signed = (d.signoffs || []).find(s => s.stage_key === d.stage_key);
+      if (needsSignoff) {
+        const kids = [sectionHead("Sign-off")];
+        if (signed) {
+          kids.push(el("div", { class: "note note--ok" }, [
+            el("b", { text: "Signed " }),
+            signed.signed_off_by + " · " + signed.signed_off_at
+          ]));
+        } else {
+          const canSign = S.me && S.me.can_signoff;
+          kids.push(el("button", {
+            class: "btn btn--sign btn--wide", disabled: S.busy || !canSign,
+            text: canSign ? "Sign off " + stage.label : "Sign-off restricted",
+            onclick: () => run(async () => {
+              await api("/api/tickets/" + encodeURIComponent(d.ticket_id) + "/signoff",
+                { method: "POST", json: {} });
+            }, "Signed off.")
+          }));
+          if (!canSign) {
+            kids.push(el("div", { class: "kv",
+              text: "Requires " + (S.cfg.signoff_roles || []).join(" or ") + "." }));
+          }
+        }
+        body.push(el("div", { class: "sec" }, kids));
+      }
+
+      // --- Photos ------------------------------------------------------
+      const needsPhoto = (stage.requires && stage.requires.attachments) || 0;
+      const stageShots = (d.attachments || []).filter(a => a.stage_key === d.stage_key);
+      const photoKids = [sectionHead(
+        needsPhoto
+          ? "Photos · " + stageShots.length + " of " + needsPhoto + " at this stage"
+          : "Photos and files"
+      )];
+      photoKids.push(el("input", {
+        class: "in", type: "file", accept: "image/*,application/pdf",
+        capture: "environment", "aria-label": "Add a photo or file",
+        onchange: e => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          const fd = new FormData();
+          fd.append("file", file);
+          run(async () => {
+            await api("/api/tickets/" + encodeURIComponent(d.ticket_id) + "/attachments",
+              { method: "POST", body: fd });
+          }, "Uploaded " + file.name + ".");
+        }
+      }));
+      if ((d.attachments || []).length) {
+        photoKids.push(el("div", { class: "files" }, d.attachments.map(a =>
+          el("a", {
+            class: "link", style: "font-size:12.5px",
+            href: API_ORIGIN + "/api/attachments/" + a.attachment_id,
+            target: "_blank", rel: "noopener",
+            text: (a.original_name || "file") + " · " + (stageOf(a.stage_key).short || "")
+          })
+        )));
+      }
+      body.push(el("div", { class: "sec" }, photoKids));
+
+      // --- Related records --------------------------------------------
+      const rel = [];
+      if ((d.knowledge_links || []).length) {
+        rel.push(el("div", { class: "kv" }, [
+          el("b", { text: "Knowledge base: " }),
+          d.knowledge_links.map(k => k.trigger_or_symptom).join(" · ")
+        ]));
+      }
+      if ((d.resources || []).length) {
+        rel.push(el("div", { class: "kv" }, [
+          el("b", { text: "Parts used: " }),
+          d.resources.map(r => r.name + " ×" + r.quantity).join(", ")
+        ]));
+      }
+      if (rel.length) body.push(el("div", { class: "sec" }, [sectionHead("Attached")].concat(rel)));
+
+      // --- Summary (clarity tiers) -------------------------------------
+      const sumKids = [sectionHead("Summary")];
+      if (S.summary) {
+        sumKids.push(el("div", { class: "line", text: S.summary.line }));
+        sumKids.push(el("div", { class: "line", text: S.summary.para }));
+      } else {
+        sumKids.push(el("button", {
+          class: "btn btn--ghost btn--wide", text: "Generate summary",
+          onclick: async () => {
+            try {
+              const [line, para] = await Promise.all([
+                api("/api/tickets/" + encodeURIComponent(d.ticket_id) + "/summary?tier=line"),
+                api("/api/tickets/" + encodeURIComponent(d.ticket_id) + "/summary?tier=paragraph")
+              ]);
+              S.summary = { line: line.text, para: para.text };
+              render();
+            } catch (err) { S.error = err.message; render(); }
+          }
+        }));
+      }
+      body.push(el("div", { class: "sec" }, sumKids));
+
+      // --- Trail -------------------------------------------------------
+      const hist = d.history || [];
+      const trailKids = [sectionHead("Stage trail · " + hist.length)];
+      if (S.showTrail) {
+        trailKids.push(el("div", { class: "trail" }, hist.map((h, i) => {
+          const keys = Object.keys(h.data || {}).filter(k =>
+            h.data[k] !== null && h.data[k] !== "" && h.data[k] !== false);
+          const current = !h.exited_at;
+          return el("div", { class: "step" }, [
+            el("div", { class: "step-gut" }, [
+              el("div", { class: "step-dot" + (current ? " step-dot--now" : "") }),
+              i < hist.length - 1 ? el("div", { class: "step-line" }) : null
+            ]),
+            el("div", { class: "step-body" }, [
+              el("div", { class: "step-name",
+                text: h.stage_label + (current ? "  ·  current" : "") }),
+              el("div", { class: "step-when mono",
+                text: h.entered_at + (h.entered_by ? "  ·  " + h.entered_by : "") }),
+              keys.length
+                ? el("div", { class: "step-data",
+                    text: keys.map(k => k + ": " + h.data[k]).join("  |  ") })
+                : null
+            ])
+          ]);
+        })));
+      } else {
+        trailKids.push(el("button", {
+          class: "btn btn--ghost btn--wide", text: "Show stage trail",
+          onclick: () => { S.showTrail = true; render(); }
+        }));
+      }
+      body.push(el("div", { class: "sec" }, trailKids));
+
+      // --- Footer actions ---------------------------------------------
+      if (d.prev_stage) {
+        foot.push(el("button", {
+          class: "btn btn--ghost", disabled: S.busy,
+          text: "← " + stageOf(d.prev_stage).label,
+          onclick: () => run(async () => {
+            await api("/api/tickets/" + encodeURIComponent(d.ticket_id) + "/revert",
+              { method: "POST" });
+          }, "Moved back a stage.")
+        }));
+      }
+      if (d.next_stage) {
+        foot.push(el("button", {
+          class: "btn btn--primary", disabled: S.busy,
+          text: (S.busy ? "Working…" : stageOf(d.next_stage).label + " →"),
+          onclick: () => run(async () => {
+            await api("/api/tickets/" + encodeURIComponent(d.ticket_id) + "/advance",
+              { method: "POST", json: { force: false } });
+          }, "Advanced.")
+        }));
+      } else {
+        foot.push(el("div", { class: "kv", style: "align-self:center",
+          text: "Final stage — record closed." }));
+      }
+    }
+
+    return el("aside", { class: "detail open", "aria-label": "Repair order detail" }, [
+      el("div", { class: "d-head" }, head.concat([
+        el("button", { class: "x-btn", "aria-label": "Close record", onclick: closeRO },
+          svg(["M6 6l12 12", "M18 6L6 18"], 20))
+      ])),
+      el("div", { class: "d-body" }, body),
+      foot.length ? el("div", { class: "d-foot" }, foot) : null
+    ]);
+  }
+
+  function renderNew() {
+    const draft = { subject: {}, stage: {} };
+    const first = S.cfg.stages[0];
+    const kids = [
+      el("div", {}, [
+        el("div", { class: "h1", text: S.cfg.new_item_label }),
+        el("div", { class: "sub",
+          text: "Opens at " + first.label + ". " + (first.description || "") })
+      ])
+    ];
+
+    if (S.error) kids.push(el("div", { class: "note note--err", text: S.error }));
+
+    kids.push(sectionHead(S.cfg.subject_label));
+    const vehGrid = el("div", { class: "grid2" });
+    S.cfg.subject_fields.forEach(f => {
+      vehGrid.appendChild(fieldBlock(f, draft.subject[f.key], v => { draft.subject[f.key] = v; }));
+    });
+    kids.push(vehGrid);
+
+    kids.push(sectionHead("Dispatch"));
+    const disp = el("div", { class: "grid2" });
+    disp.appendChild(el("div", { class: "field" }, [
+      el("label", { class: "lab", for: "f-title", text: "Short issue line" }),
+      el("input", { class: "in", id: "f-title",
+        placeholder: "Rough idle and check engine light",
+        oninput: e => { draft.title = e.target.value; } })
+    ]));
+    disp.appendChild(el("div", { class: "field" }, [
+      el("label", { class: "lab", for: "f-priority", text: "Priority" }),
+      (() => {
+        const sel = el("select", { class: "in", id: "f-priority",
+          onchange: e => { draft.priority = e.target.value; } },
+          [["low", "Low"], ["normal", "Normal"], ["rush", "Rush"]]
+            .map(([v, l]) => el("option", { value: v, text: l })));
+        sel.value = "normal";
+        return sel;
+      })()
+    ]));
+    disp.appendChild(el("div", { class: "field" }, [
+      el("label", { class: "lab", for: "f-assign", text: "Assign to" }),
+      (() => {
+        const sel = el("select", { class: "in", id: "f-assign",
+          onchange: e => { draft.assigned = e.target.value ? Number(e.target.value) : null; } },
+          [el("option", { value: "", text: "Unassigned" })].concat(
+            S.people.map(pp => el("option", { value: pp.person_id,
+              text: pp.name + " · " + pp.role }))));
+        return sel;
+      })()
+    ]));
+    kids.push(disp);
+
+    if ((first.fields || []).length) {
+      kids.push(sectionHead(first.label + " entry"));
+      const fg = el("div", { class: "grid2" });
+      first.fields.forEach(f => {
+        const block = fieldBlock(f, draft.stage[f.key], v => { draft.stage[f.key] = v; });
+        if (f.type === "textarea") block.style.gridColumn = "1 / -1";
+        fg.appendChild(block);
+      });
+      kids.push(fg);
+    }
+
+    kids.push(el("button", {
+      class: "btn btn--primary btn--wide", disabled: S.busy,
+      text: S.busy ? "Opening…" : "Open " + S.cfg.subject_label.toLowerCase() + " record",
+      onclick: () => {
+        const label = (draft.subject.label || "").trim();
+        if (!label) { S.error = S.cfg.subject_label + " is required"; render(); return; }
+        const attrs = Object.assign({}, draft.subject);
+        delete attrs.label;
+        run(async () => {
+          const created = await api("/api/tickets", {
+            method: "POST",
+            json: {
+              subject_label: label,
+              subject_attributes: attrs,
+              title: draft.title || null,
+              priority: draft.priority || "normal",
+              assigned_person_id: draft.assigned || null,
+              stage_data: draft.stage
+            }
+          });
+          S.view = "board"; S.filter = "open"; S.openId = created.ticket_id;
+        }, "Record opened.");
+      }
+    }));
+
+    return el("div", { class: "scroll" }, el("div", { class: "sheet" }, kids));
+  }
+
+  function renderStatus() {
+    const open = S.tickets.filter(t => !t.done);
+    const done = S.tickets.filter(t => t.done);
+    const rush = open.filter(t => t.priority === "rush");
+    const blocked = open.filter(t => (t.blockers || []).length);
+    const out = [
+      el("div", {}, [
+        el("div", { class: "h1", text: "Shop status" }),
+        el("div", { class: "sub", text: "One line per record, grouped by stage." })
+      ])
+    ];
+
+    out.push(el("div", { class: "stat-row" }, [
+      ["Active", open.length, "var(--sky)"],
+      ["Rush", rush.length, "var(--ember)"],
+      ["Blocked", blocked.length, "var(--yellow)"],
+      ["Closed", done.length, "var(--sage)"]
+    ].map(([lab, val, c]) => el("div", { class: "stat", style: "border-top-color:" + c }, [
+      el("div", { class: "over", text: lab }),
+      el("div", { class: "stat-val", text: String(val) })
+    ]))));
+
+    if (!open.length) {
+      out.push(el("div", { class: "empty" }, [
+        el("div", { class: "empty-h", text: "Every bay is clear" }),
+        el("div", { class: "empty-p", text: "Nothing is open right now." })
+      ]));
+      return el("div", { class: "scroll" }, out);
+    }
+
+    S.cfg.stages.forEach(st => {
+      const rows = open.filter(t => t.stage_key === st.key);
+      if (!rows.length) return;
+      const c = stageColor(st.key);
+      out.push(el("div", { class: "sheet sheet--wide", style: "gap:10px" }, [
+        el("div", { class: "sec-head" }, [
+          el("span", { class: "d-dot", style: "background:" + c }),
+          el("span", { class: "h2", text: st.label }),
+          el("span", { class: "col-n mono", text: String(rows.length) }),
+          el("div", { class: "sec-rule" })
+        ])
+      ].concat(rows.map(t => el("button", {
+        class: "line", style: "cursor:pointer;text-align:left;width:100%",
+        onclick: () => { S.view = "board"; openRO(t.ticket_id); },
+        text: t.ticket_id + "  " + t.subject_label +
+          "  ·  " + (t.assigned_name || "unassigned") +
+          (t.priority === "rush" ? "  ·  RUSH" : "") +
+          ((t.blockers || []).length ? "  ·  blocked: " + t.blockers[0] : "")
+      })))));
+    });
+
+    return el("div", { class: "scroll" }, out);
+  }
+
+  function renderKB() {
+    const out = [
+      el("div", {}, [
+        el("div", { class: "h1", text: "Knowledge base" }),
+        el("div", { class: "sub", text: "Symptom, cause, diagnostic path, resolution." })
+      ]),
+      el("input", {
+        class: "in", style: "max-width:760px",
+        placeholder: "Search symptom, cause, resolution…",
+        "aria-label": "Search the knowledge base",
+        oninput: async e => {
+          const q = e.target.value.trim();
+          try {
+            S.kb = await api("/api/kb" + (q ? "?q=" + encodeURIComponent(q) : ""));
+            const host = document.getElementById("kb-list");
+            if (host) host.replaceChildren.apply(host, kbCards());
+          } catch (err) { S.error = err.message; render(); }
+        }
+      }),
+      el("div", { id: "kb-list", class: "grid2" }, kbCards())
+    ];
+    return el("div", { class: "scroll" }, out);
+  }
+
+  function kbCards() {
+    if (!S.kb.length) {
+      return [el("div", { class: "empty" }, [
+        el("div", { class: "empty-h", text: "No entries match" }),
+        el("div", { class: "empty-p", text: "Try a shorter search, or clear the box." })
+      ])];
+    }
+    const row = (lab, val) => val
+      ? el("div", { class: "kv" }, [el("b", { text: lab + ": " }), val]) : null;
+    return S.kb.map(k => el("div", { class: "kb-card" }, [
+      el("span", { class: "kb-cat", text: k.category }),
+      el("div", { class: "h2", text: k.trigger_or_symptom }),
+      row("Likely causes", k.likely_causes),
+      row("Diagnostics", k.diagnostic_steps),
+      row("Resolution", k.common_resolution),
+      row("Note", k.notes)
+    ]));
+  }
+
+  // ------------------------------------------------------------------
+  // Shell
+  // ------------------------------------------------------------------
+  const TABS = [
+    { key: "board", label: "Board", icon: "board" },
+    { key: "new", label: "New RO", icon: "plus" },
+    { key: "status", label: "Status", icon: "gauge" },
+    { key: "kb", label: "Knowledge", icon: "book" }
+  ];
+
+  function goto(key) {
+    S.view = key; S.error = null; S.notice = null;
+    if (key !== "board") S.openId = null;
+    if (key === "kb" && !S.kb.length) {
+      api("/api/kb").then(r => { S.kb = r; render(); }).catch(() => render());
+    }
+    render();
+  }
+
+  function renderChrome() {
+    document.getElementById("tool-name").textContent = S.cfg.tool_name;
+    document.getElementById("dept").textContent =
+      S.cfg.department_a.replace(" (owns the workflow)", "") + " × " +
+      S.cfg.department_b.replace(" (owns build/maintain)", "");
+    document.title = S.cfg.tool_name;
+
+    const badge = document.getElementById("badge");
+    if (S.me) {
+      badge.textContent = S.me.authenticated ? S.me.role : S.me.role + " · local";
+      badge.className = "badge" + (S.me.authenticated ? "" : " badge--anon");
+    }
+
+    const sel = document.getElementById("role-sel");
+    if (S.me && !S.me.authenticated) {
+      sel.hidden = false;
+      if (!sel.childElementCount) {
+        // The acting role can be something outside this list (viewer, by
+        // default) -- without it the select renders blank.
+        const roles = ["student", "instructor", "staff"];
+        const current = S.devRole || S.me.role;
+        if (current && roles.indexOf(current) === -1) roles.unshift(current);
+        roles.forEach(r =>
+          sel.appendChild(el("option", { value: r, text: "act as " + r })));
+        sel.value = current;
+        sel.addEventListener("change", e => {
+          S.devRole = e.target.value;
+          store.set("bz-dev-role", S.devRole);
+          run(async () => {});
+        });
+      }
+    } else {
+      sel.hidden = true;
+    }
+
+    // KPI strip — derived from list rows only, so it survives a forked
+    // workflow.json with different stage keys.
+    const open = S.tickets.filter(t => !t.done);
+    const kpis = [
+      { lab: "Active", val: open.length },
+      { lab: "Rush", val: open.filter(t => t.priority === "rush").length },
+      { lab: "Blocked", val: open.filter(t => (t.blockers || []).length).length, alert: true },
+      { lab: "Closed", val: S.tickets.length - open.length }
+    ];
+    const host = document.getElementById("kpis");
+    host.replaceChildren.apply(host, kpis.map(k => el("div", {
+      class: "kpi" + (k.alert && k.val ? " kpi--alert" : "")
+    }, [
+      el("div", { class: "kpi-val", text: String(k.val) }),
+      el("div", { class: "over kpi-lab", text: k.lab })
+    ])));
+
+    const rail = document.getElementById("rail");
+    rail.replaceChildren.apply(rail, [
+      el("div", { class: "mark" }, svg(ICON.logo, 24))
+    ].concat(TABS.map(t => el("button", {
+      class: "rail-btn", "aria-current": S.view === t.key ? "page" : null,
+      onclick: () => goto(t.key)
+    }, [svg(ICON[t.icon], 22), el("span", { text: t.label })]))));
+
+    const tabs = document.getElementById("tabs");
+    tabs.replaceChildren.apply(tabs, TABS.map(t => el("button", {
+      class: "tab-btn", "aria-current": S.view === t.key ? "page" : null,
+      onclick: () => goto(t.key)
+    }, [svg(ICON[t.icon], 21), el("span", { text: t.label })])));
+
+    const smallMark = document.querySelector(".mark-sm");
+    if (smallMark && !smallMark.childElementCount) smallMark.appendChild(svg(ICON.logo, 21));
+  }
+
+  function render() {
+    if (!S.cfg) return;
+    renderChrome();
+
+    const main = document.getElementById("main");
+    let node;
+    try {
+      node = S.view === "board" ? renderBoard()
+        : S.view === "new" ? renderNew()
+        : S.view === "kb" ? renderKB()
+        : renderStatus();
+    } catch (e) {
+      node = el("div", { class: "scroll" },
+        el("div", { class: "note note--err", text: "Render error: " + e.message }));
+    }
+
+    // A board-level error has no detail panel to live in.
+    if (S.error && S.view === "board" && !S.openId) {
+      const banner = el("div", { class: "note note--err", style: "margin:12px 20px 0",
+        text: S.error });
+      const holder = el("div", { style: "display:flex;flex-direction:column;height:100%" },
+        [banner, node]);
+      node.style.flex = "1";
+      node.style.minHeight = "0";
+      node = holder;
+    }
+    if (S.error && S.view === "status") {
+      node.insertBefore(el("div", { class: "note note--err", text: S.error }), node.firstChild);
+    }
+
+    const kids = [node];
+    if (S.view === "board") kids.push(renderDetailPanel());
+    main.replaceChildren.apply(main, kids);
+  }
+
+  function bootSkeleton() {
+    const main = document.getElementById("main");
+    main.replaceChildren(el("div", { class: "board", style: "padding:20px" },
+      [0, 1, 2, 3].map(() => el("div", { class: "col" }, [
+        el("div", { class: "col-accent", style: "background:var(--ink-5)" }),
+        el("div", { class: "col-head" }, el("div", { class: "sk", style: "height:14px;width:60%" })),
+        el("div", { class: "col-body" }, [
+          el("div", { class: "sk", style: "height:96px" }),
+          el("div", { class: "sk", style: "height:96px" })
+        ])
+      ]))));
+  }
+
+  async function boot() {
+    bootSkeleton();
+    try {
+      // Strip ?session= from the URL after the server sets the cookie.
+      if (new URL(window.location.href).searchParams.has("session")) {
+        history.replaceState({}, "", window.location.pathname);
+      }
+      S.cfg = await api("/api/config");
+      const [tickets, me, people, kb] = await Promise.all([
+        api("/api/tickets"), api("/api/me"), api("/api/people"), api("/api/kb")
+      ]);
+      S.tickets = tickets; S.me = me; S.people = people; S.kb = kb;
+      render();
+    } catch (e) {
+      document.getElementById("main").replaceChildren(
+        el("div", { class: "empty" }, [
+          el("div", { class: "empty-h", text: "Cannot reach the shop service" }),
+          el("div", { class: "empty-p", text: e.message }),
+          el("button", { class: "btn btn--ghost", text: "Retry", onclick: () => boot() })
+        ])
+      );
+    }
+  }
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && S.openId) closeRO();
+  });
+
+  boot();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+[Unit]
+Description=Bay Log — blend-zone tool service
+Documentation=file://__APP_DIR__/docs/runbook.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=__APP_USER__
+Group=__APP_USER__
+WorkingDirectory=__APP_DIR__
+EnvironmentFile=/etc/blendzone.env
+ExecStart=__APP_DIR__/.venv/bin/uvicorn app.asgi:app \
+    --host 127.0.0.1 \
+    --port __APP_PORT__ \
+    --workers 2 \
+    --proxy-headers \
+    --forwarded-allow-ips 127.0.0.1 \
+    --no-server-header
+
+Restart=always
+RestartSec=3
+TimeoutStopSec=20
+
+# --- hardening ---
+# The code directory is root-owned; the service only needs to write to
+# its data directory, so everything else is read-only.
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=no
+ReadWritePaths=/var/lib/blendzone
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=blendzone
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+.env
+*.env
+!.env.example
+*.pem
+keys/
+*.db
+*.db-wal
+*.db-shm
+data/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.DS_Store

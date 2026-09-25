@@ -1,0 +1,18 @@
+# Lower bounds rather than hard pins: the sandbox this was built in runs
+# Python 3.14 while the Debian 12 LXC runs 3.11, and hard-pinned
+# pydantic-core has no wheel for both. Verified against the versions in
+# the trailing comment.
+fastapi>=0.115
+uvicorn[standard]>=0.34
+python-multipart>=0.0.20
+pydantic>=2.10
+a2wsgi>=1.10
+Flask>=3.0,<4
+Flask-Caching>=2.3
+PyLTI1p3>=2.0
+PyJWT>=2.9
+cryptography>=43.0
+requests>=2.32
+
+# Verified working set: fastapi 0.141.1, pydantic 2.13.5, uvicorn 0.34+,
+# a2wsgi 1.10+, Flask 3.0.3, PyLTI1p3 2.0.0, Python 3.11 and 3.14.
